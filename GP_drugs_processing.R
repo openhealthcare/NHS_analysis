@@ -42,24 +42,32 @@ problem.drugs[problem.drugs$Drug=="Candesartan Cilexetil",]$saving<-0.8849349039
 total.problem.spend<-data.frame(matrix(nrow=0,ncol=4))
 spend.practice<-data.frame(matrix(nrow=0,ncol=11))
 spend.pct<-data.frame(matrix(nrow=0,ncol=6))
+spend.practice.total<-data.frame(matrix(nrow=0,ncol=4))
 
 # Loop to load, analyse, and remove large data files
 for (i in 1:length(file.list)){
 #for (i in 1:1){
 file.name<-file.list[i]
+print(file.name)
 GP.drugs <- read.csv(file.name, header=TRUE)
 GP.drugs$BNF.NAME<-trim(GP.drugs$BNF.NAME)
-#t<-subset(GP.drugs,BNF.NAME %in% problem.drugs$Drug)
-t<-GP.drugs
+surgery.subtotal<-aggregate(GP.drugs[,c("ACT.COST","ITEMS")],by=list(GP.drugs$PRACTICE,GP.drugs$PERIOD),FUN=sum)
+names(surgery.subtotal)<-c("Practice.code","Month","cost.alldrugs","items.alldrugs")
+
+t<-subset(GP.drugs,BNF.NAME %in% problem.drugs$Drug)
+#t<-GP.drugs
 problem.spend<-aggregate(t[,c("ACT.COST","ITEMS")],by=list(t$BNF.NAME,t$PERIOD),FUN=sum)
 names(problem.spend)<-c("Drug","Period","Spend","Items")
 problem.spend$Spend<-round(problem.spend$Spend,digits=0)
 problem.spend$Drug<-as.character(problem.spend$Drug)
 total.problem.spend<-rbind(total.problem.spend,problem.spend)
-  
+
 # Calculations by practice
 s<-aggregate(t[,c("ACT.COST","ITEMS")],by=list(t$PRACTICE,t$PERIOD,t$BNF.NAME),FUN=sum)
-s<-merge(s,short.addresses,by.x="Group.1",by.y="V2",all.x=TRUE)
+names(s)<-c("Practice.code","Month","Drug","cost.thisdrug","items.thisdrug")
+s<-merge(s,surgery.subtotal,all.x=TRUE)
+s<-merge(s,short.addresses,by.x="Practice.code",by.y="V2",all.x=TRUE)
+
 spend.practice<-rbind(spend.practice,s)
 }  
 

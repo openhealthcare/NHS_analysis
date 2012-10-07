@@ -12,25 +12,25 @@ spend.practice<-read.csv("spend_practice.csv")
 problem.drugs<-read.csv("problem_drugs.csv")
 problem.spend<-read.csv("problem_spend.csv")
 
-  
+spend.practice$item.pct<-spend.practice$items.thisdrug/spend.practice$items.alldrugs
 total.problem.spend<-merge(total.problem.spend,problem.drugs,all.x=TRUE)
 total.problem.spend$amount.wasted<-total.problem.spend$Spend*total.problem.spend$saving
 wasted.totals<-aggregate(total.problem.spend[,c("Spend","Items","amount.wasted")],by=list("Drug"=total.problem.spend$Drug,"category"=total.problem.spend$category),FUN=sum)
 
 ## Calculate waste per practice
-names(spend.practice)<-c("Practice.code","Month","Drug","ACT.COST","ITEMS","Practice.name","Town","Postcode")
+#names(spend.practice)<-c("Practice.code","Month","Drug","ACT.COST","ITEMS","Practice.name","Town","Postcode")
 spend.practice<-merge(spend.practice,problem.drugs,all.x=TRUE)
-spend.practice$amount.wasted<-spend.practice$ACT.COST*as.numeric(spend.practice$saving)
+spend.practice$amount.wasted<-spend.practice$cost.thisdrug*as.numeric(spend.practice$saving)
 spend.practice.totals<-
-  aggregate(spend.practice[,c("ACT.COST","ITEMS","amount.wasted")],
+  aggregate(spend.practice[,c("cost.thisdrug","items.thisdrug","cost.alldrugs","items.alldrugs","amount.wasted")],
             by=
               list("Drug"=spend.practice$Drug,
-                   "Practice.name"=spend.practice$Practice.name,
-                   "Town"=spend.practice$Town,
-                   "Postcode"=spend.practice$Postcode,
+                   "Practice.name"=spend.practice$V3,
+                   "Town"=spend.practice$V6,
+                   "Postcode"=spend.practice$V8,
                    "category"=spend.practice$category),
             FUN=sum)
-
+spend.practice.totals$item.pct<-spend.practice.totals$items.thisdrug/spend.practice.totals$items.alldrugs
 # Read in postcode table and extend spend practice totals
 #drv <- dbDriver("SQLite")
 #db<-dbConnect(drv,"zip_and_post_codes.sqlite")
@@ -42,7 +42,7 @@ spend.practice.totals<-
 statins<-cast(subset(spend.practice.totals,category=="statin"),Practice.name+Town+Postcode~Drug,value="amount.wasted",fun.aggregate=sum)
 statins<-statins[,c("Practice.name","Town","Postcode","Atorvastatin","Rosuvastatin Calcium")]
 t<-subset(spend.practice.totals,category=="statin")
-t<-aggregate(t$ACT.COST,
+t<-aggregate(t$cost.thisdrug,
              by=
                list("Practice.name"=t$Practice.name,
                     "Town"=t$Town,
@@ -106,24 +106,9 @@ PracticeGeoCandesartan<-gvisGeoMap(big.spenders.candesartan[1:50,],
 plot(PracticeGeoCandesartan)
 
 
-# Maps for Viagra
-viagra<-cast(subset(spend.practice.totals,Drug=="Sildenafil (Erectile Dysfunction)"),Practice.name+Town+Postcode~Drug,value="amount.wasted",fun.aggregate=sum)
-big.spenders<-viagra[order(viagra[,4],decreasing=TRUE),]
-big.spenders$Monthly.Waste<-round(big.spenders[,4]/length(file.list),0) 
-
-PracticeGeoViagra<-gvisGeoMap(big.spenders[1:50,],
-                                   locationvar="Postcode", 
-                                   numvar="Monthly.Waste", 
-                                   hovervar="Practice.name",
-                                   options=list(dataMode="markers",region="GB",
-                                                showLegend=FALSE,
-                                                width='600px',
-                                                height='400px',
-                                                colors='[0xFFFFFF,0xCC0000]'
-                                   )
-)
-
-plot(PracticeGeoViagra)
+# Calcs for Viagra
+viagra.calc<-subset(spend.practice.totals,Drug=="Sildenafil (Erectile Dysfunction)")
+hist(viagra.calc$item.pct,xlim=c(0,0.005),10000,xlab="% of spend on Viagra",main="Viagra spend distribution")
 
 #p <- ggplot(wasted.month, aes(x=Period, y=amount.wasted, group=Drug)) 
 #wasted.month$Period<-as.Date(paste(wasted.month$Period,"01",sep=""),'%Y%m%d')
